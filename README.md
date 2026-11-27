@@ -25,7 +25,7 @@
 `META-INF/xposed/java_init.list` 仅注册极简入口 `HookEntry`，具体功能按职责拆分为独立模块：
 
 ```text
-app/src/main/java/com/custom/breenocallvoice/
+app/src/main/java/io/github/uchihastesla/breenocallvoice/
 ├── BreenoApp.kt                           # 注册 XposedServiceHelper
 ├── config/
 │   ├── ModuleConfig.kt                    # 配置键、默认值、策略与主题枚举
