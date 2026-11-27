@@ -27,6 +27,13 @@ object BreenoConstants {
     const val CLASS_OFFLINE_DOWNLOAD_HELPER = "com.heytap.speechassist.aicall.engine.tts.offline.AiCallOfflineDownloadHelper"
     const val CLASS_OFFLINE_TTS_MANAGER = "com.heytap.speechassist.aicall.engine.tts.offline.AiCallOfflineTtsManager"
 
+    // Module self & launcher bridge
+    const val MODULE_PACKAGE = "com.custom.breenocallvoice"
+    const val CLASS_SPEECH_ASSIST_MAIN_ACTIVITY = "com.heytap.speechassist.launcher.SpeechAssistMainActivity"
+    const val ACTION_AI_CALL_SETTING = "heytap.intent.action.AI_CALL_SETTING"
+    const val EXTRA_LAUNCH_ROUTE = "bcv_launch_route"
+    const val ROUTE_AICALL_SETTINGS = "aicall_settings"
+
     // In-app update SDK & UI
     const val CLASS_UPGRADE_SDK = "com.heytap.upgrade.UpgradeSDK"
     const val CLASS_CHECK_PARAM = "com.heytap.upgrade.CheckParam"

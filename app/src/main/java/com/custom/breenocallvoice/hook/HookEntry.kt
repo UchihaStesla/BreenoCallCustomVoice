@@ -3,6 +3,7 @@ package com.custom.breenocallvoice.hook
 import android.util.Log
 import com.custom.breenocallvoice.config.ModuleConfig
 import com.custom.breenocallvoice.config.ModulePrefsReader
+import com.custom.breenocallvoice.hook.bridge.LauncherAllowHook
 import com.custom.breenocallvoice.hook.core.FeatureHook
 import com.custom.breenocallvoice.hook.core.HookContext
 import com.custom.breenocallvoice.hook.timbre.AiCallOfflineFallbackHook
@@ -30,6 +31,7 @@ class HookEntry : XposedModule() {
     private val mainProcessHooks: List<FeatureHook> = listOf(
         MainTimbreSyncHook(),
         BlockUpdateHook(),
+        LauncherAllowHook(),
     )
 
     private val aiCallProcessHooks: List<FeatureHook> = listOf(

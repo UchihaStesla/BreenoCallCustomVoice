@@ -1,7 +1,9 @@
 package com.custom.breenocallvoice.config
 
+import android.content.ComponentName
 import android.content.Context
 import android.content.SharedPreferences
+import android.content.pm.PackageManager
 import android.util.Log
 import io.github.libxposed.service.XposedService
 import io.github.libxposed.service.XposedServiceHelper
@@ -20,12 +22,14 @@ data class ServiceUiState(
     val supportsRemotePrefs: Boolean = false,
     val settings: ModuleSettings = ModuleSettings(),
     val themeMode: ThemeMode = ModuleConfig.DEFAULT_THEME_MODE,
+    val uiStyle: UiStyle = ModuleConfig.DEFAULT_UI_STYLE,
+    val isLauncherIconHidden: Boolean = false,
 )
 
 /**
- * Bridges libxposed-service (API 102) with the Miuix Compose UI.
+ * Bridges libxposed-service (API 102) with the Compose UI (Miuix & Material Design 3).
  * Persists feature toggles via XposedService.getRemotePreferences() when activated,
- * and stores UI theme preference locally.
+ * manages local UI style / theme preferences, and toggles the launcher icon alias.
  */
 object XposedServiceManager {
 
@@ -47,7 +51,15 @@ object XposedServiceManager {
         if (!initialized.compareAndSet(false, true)) return
 
         val localTheme = readLocalThemeMode()
-        _state.update { it.copy(themeMode = localTheme) }
+        val localUiStyle = readLocalUiStyle()
+        val iconHidden = readLauncherIconHidden()
+        _state.update {
+            it.copy(
+                themeMode = localTheme,
+                uiStyle = localUiStyle,
+                isLauncherIconHidden = iconHidden,
+            )
+        }
 
         XposedServiceHelper.registerListener(object : XposedServiceHelper.OnServiceListener {
             override fun onServiceBind(service: XposedService) {
@@ -71,6 +83,7 @@ object XposedServiceManager {
     }
 
     fun refresh() {
+        _state.update { it.copy(isLauncherIconHidden = readLauncherIconHidden()) }
         val service = xposedService ?: return
         refreshFromService(service)
     }
@@ -89,6 +102,7 @@ object XposedServiceManager {
                 isTargetInScope = scope.contains(ModuleConfig.TARGET_PACKAGE),
                 supportsRemotePrefs = remotePrefs != null,
                 settings = settings,
+                isLauncherIconHidden = readLauncherIconHidden(),
             )
         }
     }
@@ -126,6 +140,36 @@ object XposedServiceManager {
         _state.update { it.copy(themeMode = mode) }
     }
 
+    fun setUiStyle(style: UiStyle) {
+        localUiPrefs()?.edit()?.putInt(ModuleConfig.KEY_UI_STYLE, style.value)?.apply()
+        _state.update { it.copy(uiStyle = style) }
+    }
+
+    fun setLauncherIconHidden(hidden: Boolean): Boolean {
+        val ctx = appContext ?: return false
+        val ok = runCatching {
+            val component = ComponentName(ctx.packageName, ModuleConfig.LAUNCHER_ALIAS_CLASS)
+            val newState = if (hidden) {
+                PackageManager.COMPONENT_ENABLED_STATE_DISABLED
+            } else {
+                PackageManager.COMPONENT_ENABLED_STATE_ENABLED
+            }
+            ctx.packageManager.setComponentEnabledSetting(
+                component,
+                newState,
+                PackageManager.DONT_KILL_APP,
+            )
+            true
+        }.onFailure {
+            Log.e(TAG, "Failed to toggle launcher icon alias", it)
+        }.getOrDefault(false)
+
+        if (ok) {
+            _state.update { it.copy(isLauncherIconHidden = hidden) }
+        }
+        return ok
+    }
+
     fun requestTargetScope(onResult: (approved: Boolean, message: String) -> Unit) {
         val service = xposedService
         if (service == null) {
@@ -154,6 +198,15 @@ object XposedServiceManager {
             Log.e(TAG, "requestScope failed", err)
             onResult(false, err.message ?: "请求作用域失败")
         }
+    }
+
+    private fun readLauncherIconHidden(): Boolean {
+        val ctx = appContext ?: return false
+        return runCatching {
+            val component = ComponentName(ctx.packageName, ModuleConfig.LAUNCHER_ALIAS_CLASS)
+            ctx.packageManager.getComponentEnabledSetting(component) ==
+                PackageManager.COMPONENT_ENABLED_STATE_DISABLED
+        }.getOrDefault(false)
     }
 
     private fun readSettings(prefs: SharedPreferences): ModuleSettings = ModuleSettings(
@@ -194,5 +247,13 @@ object XposedServiceManager {
             ModuleConfig.DEFAULT_THEME_MODE.value,
         ) ?: ModuleConfig.DEFAULT_THEME_MODE.value
         return ThemeMode.fromValue(raw)
+    }
+
+    private fun readLocalUiStyle(): UiStyle {
+        val raw = localUiPrefs()?.getInt(
+            ModuleConfig.KEY_UI_STYLE,
+            ModuleConfig.DEFAULT_UI_STYLE.value,
+        ) ?: ModuleConfig.DEFAULT_UI_STYLE.value
+        return UiStyle.fromValue(raw)
     }
 }

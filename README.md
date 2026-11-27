@@ -14,9 +14,10 @@
 - **阻止小布助手应用内更新**：
   - 拦截 `UpgradeSDK` 的 `checkUpgrade`（模拟返回 `FLAG_NO_UPGRADE`，手动检查时显示「已是最新版本」）、`startDownload`、`install`、`hasDownloadComplete`。
   - 拦截 `UpgradeInfo.isUpgradeAvailable()`、`UpgradeActivity` 弹窗命令以及更新通知推送。
-- **Miuix（HyperOS 风格）控制面板**：
-  - 基于 `top.yukonga.miuix.kmp`（Miuix 0.9.4）与 `io.github.libxposed:service:102.0.0`。
-  - 实时显示模块激活状态、LSPosed 框架与 API 版本、小布助手版本检测、一键请求作用域。
+- **双风格现代控制面板（Miuix + Material Design 3）**：
+  - 支持在 **Miuix（HyperOS 风格）** 与 **Material Design 3（Material You）** 两套原生 Compose UI 之间实时一键切换。
+  - 支持 **隐藏桌面图标**（通过 `<activity-alias>` 切换，隐藏后可在 LSPosed 管理器中通过 `MODULE_SETTINGS` 入口重新打开）。
+  - 实时显示模块激活状态、LSPosed 框架与 API 版本、小布助手版本检测、一键请求作用域；内置「打开小布助手」「直达小布通话设置」「小布助手应用信息」快捷入口。
   - 所有功能开关通过 `RemotePreferences` 实时下发至宿主进程，支持浅色 / 深色 / Android Monet 动态取色主题。
 
 ## 模块化项目架构
@@ -39,6 +40,7 @@ app/src/main/java/com/custom/breenocallvoice/
 │   ├── bridge/
 │   │   ├── BreenoConstants.kt             # 目标类名、MMKV 键、IPC 指令常量
 │   │   ├── BreenoBridgeClient.kt          # 跨进程 MMKV 与 IAiCallBridge 客户端封装
+│   │   ├── LauncherAllowHook.kt           # 放行模块拉起小布助手 & 直达小布通话设置
 │   │   └── TimbreStore.kt                 # 线程安全自定义音色注册表与 JSON 解析
 │   ├── timbre/
 │   │   ├── MainTimbreSyncHook.kt          # 主进程缓存同步与云端刷新
@@ -49,10 +51,13 @@ app/src/main/java/com/custom/breenocallvoice/
 │       └── BlockUpdateHook.kt             # 应用内自更新拦截（UpgradeSDK / 弹窗 / 通知）
 └── ui/
     ├── MainActivity.kt                    # Edge-to-Edge Compose Activity
-    ├── theme/AppTheme.kt                  # Miuix ThemeController 主题封装
+    ├── theme/AppTheme.kt                  # Miuix + Material Design 3 主题封装
     └── screen/
-        ├── HomeScreen.kt                  # Miuix 主设置页与对话框
-        └── components/StatusCard.kt       # 激活状态与一键请求作用域卡片
+        ├── HomeScreen.kt                  # UI 风格路由入口
+        ├── HomeScreenSupport.kt           # 共享工具与快捷跳转逻辑
+        ├── miuix/MiuixHomeScreen.kt       # Miuix（HyperOS 风格）设置页
+        ├── material3/Material3HomeScreen.kt # Material Design 3 设置页
+        └── components/StatusCard.kt       # Miuix 状态卡片组件
 ```
 
 ## 构建与安装

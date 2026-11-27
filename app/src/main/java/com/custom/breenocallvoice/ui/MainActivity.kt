@@ -37,7 +37,10 @@ class MainActivity : ComponentActivity() {
                 )
             }
 
-            AppTheme(themeMode = uiState.themeMode) {
+            AppTheme(
+                uiStyle = uiState.uiStyle,
+                themeMode = uiState.themeMode,
+            ) {
                 HomeScreen(uiState = uiState)
             }
         }

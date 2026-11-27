@@ -2,7 +2,7 @@ package com.custom.breenocallvoice.config
 
 /**
  * Single source of truth for module preferences, keys, and default values.
- * Shared across the Miuix UI (via XposedService.getRemotePreferences)
+ * Shared across the UI (via XposedService.getRemotePreferences)
  * and the hooked process (via XposedModule.getRemotePreferences).
  */
 object ModuleConfig {
@@ -12,6 +12,7 @@ object ModuleConfig {
     const val TARGET_PACKAGE = "com.heytap.speechassist"
     const val MAIN_PROCESS = "com.heytap.speechassist"
     const val AICALL_PROCESS = "com.heytap.speechassist:aiCall"
+    const val LAUNCHER_ALIAS_CLASS = "com.custom.breenocallvoice.ui.LauncherAlias"
 
     // Remote preference keys (synced from UI -> LSPosed -> target app)
     const val KEY_ENABLE_CUSTOM_TIMBRE = "enable_custom_timbre"
@@ -23,6 +24,7 @@ object ModuleConfig {
 
     // Local UI-only preference keys
     const val KEY_THEME_MODE = "ui_theme_mode"
+    const val KEY_UI_STYLE = "ui_style"
 
     // Defaults
     const val DEFAULT_ENABLE_CUSTOM_TIMBRE = true
@@ -32,6 +34,7 @@ object ModuleConfig {
     const val DEFAULT_VERBOSE_LOG = false
     val DEFAULT_BIZ_SOURCE_MODE = BizSourceMode.AUTO
     val DEFAULT_THEME_MODE = ThemeMode.SYSTEM
+    val DEFAULT_UI_STYLE = UiStyle.MIUIX
 }
 
 enum class BizSourceMode(val value: Int, val label: String, val description: String) {
@@ -54,6 +57,24 @@ enum class BizSourceMode(val value: Int, val label: String, val description: Str
     companion object {
         fun fromValue(value: Int): BizSourceMode =
             entries.firstOrNull { it.value == value } ?: AUTO
+    }
+}
+
+enum class UiStyle(val value: Int, val label: String, val description: String) {
+    MIUIX(
+        value = 0,
+        label = "Miuix（澎湃风格）",
+        description = "HyperOS / MIUI 卡片与弹性滚动视觉风格",
+    ),
+    MATERIAL3(
+        value = 1,
+        label = "Material Design 3",
+        description = "Google Material You 现代设计语言，支持动态取色",
+    );
+
+    companion object {
+        fun fromValue(value: Int): UiStyle =
+            entries.firstOrNull { it.value == value } ?: MIUIX
     }
 }
 
