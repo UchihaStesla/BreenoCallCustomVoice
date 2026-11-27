@@ -1,23 +1,64 @@
-# 小布通话自定义音色 (BreenoCallCustomVoice)
+# BreenoCallCustomVoice
 
-基于现代 **LSPosed / libxposed API 102**（`io.github.libxposed:api:102.0.0`）开发的模块，使 OPPO / 一加 / 真我手机上的 **小布通话** 支持选择并使用 **小布助手中的自定义音色**（复刻音色）。
+现代 **LSPosed / libxposed API 102** 模块（Kotlin + Jetpack Compose + **Miuix 0.9.4**），用于使 OPPO / OnePlus / realme 手机的 **小布通话（AI 接听）** 支持使用 **小布助手** 中的 **自定义声音音色**，并内置 **应用内更新拦截** 与 HyperOS/Miuix 风格设置界面。
 
-> 适配目标：`com.heytap.speechassist`（已针对 `12.9.6` / `versionCode 120906` 实测反编译验证）。
+> 逆向与目标校验基于 `com.heytap.speechassist` `v12.9.6` (`versionCode = 120906`)。
 
-## 使用方式
+## 功能特性
 
-1. 安装编译好的 APK（或通过 GitHub Actions 构建下载）。
-2. 在 **LSPosed 管理器** 中启用模块，作用域勾选 **小布助手 (`com.heytap.speechassist`)**（已通过 `META-INF/xposed/scope.list` 声明推荐作用域）。
-3. 强行停止小布助手（含 `:aiCall` 进程）。
-4. 先打开一次 **小布助手 → 设置 → 音色/自定义音色** 页面，确保自定义音色列表已缓存并同步。
-5. 再进入 **小布通话设置 → 音色选择**，即可看到并试听/选用自定义音色。
+- **自定义音色跨进程同步与注入**：
+  - 主进程镜像 `key_cache_user_timbres` 与欢太账号鉴权信息到多进程 MMKV（`d90.b`），并复用既有 `IAiCallBridge` 提供按需 IPC 查询与云端刷新。
+  - `:aiCall` 进程合并已生成（`status == 3`）的自定义音色到 `AiCallTimbreConfigBean.getToneList()`，并自动刷新小布通话音色设置页。
+  - `HeytapTtsEngine.startSpeaking` 自动注入 `ttsType=USER_TIMBRE`、`userToken`、`heytapAccountDeviceId` 与 `clientContext`，内置 `biz_source` 策略（自动探测回退 / 强制清空 / 保持原样）。
+  - 离线播报缺少自定义模型时自动回退至默认离线音色（`xiaoou_female`），避免无声或崩溃。
+- **阻止小布助手应用内更新**：
+  - 拦截 `UpgradeSDK` 的 `checkUpgrade`（模拟返回 `FLAG_NO_UPGRADE`，手动检查时显示「已是最新版本」）、`startDownload`、`install`、`hasDownloadComplete`。
+  - 拦截 `UpgradeInfo.isUpgradeAvailable()`、`UpgradeActivity` 弹窗命令以及更新通知推送。
+- **Miuix（HyperOS 风格）控制面板**：
+  - 基于 `top.yukonga.miuix.kmp`（Miuix 0.9.4）与 `io.github.libxposed:service:102.0.0`。
+  - 实时显示模块激活状态、LSPosed 框架与 API 版本、小布助手版本检测、一键请求作用域。
+  - 所有功能开关通过 `RemotePreferences` 实时下发至宿主进程，支持浅色 / 深色 / Android Monet 动态取色主题。
 
-## GitHub Actions 自动编译
+## 模块化项目架构
 
-直接将本目录推送至 GitHub 仓库即可触发 `.github/workflows/build.yml` 自动构建：
-- 未配置 Secrets 时，Workflow 会自动生成临时签名证书并产出可直接安装的 Release APK（位于 Actions Artifacts 中的 `BreenoCallCustomVoice-release-apk`）。
-- 如需使用固定签名，可在仓库 Settings → Secrets and variables → Actions 中配置：
-  - `KEYSTORE_BASE64`（jks 证书的 base64 编码）
-  - `KEYSTORE_PASSWORD`
-  - `KEY_ALIAS`
-  - `KEY_PASSWORD`
+`META-INF/xposed/java_init.list` 仅注册极简入口 `HookEntry`，具体功能按职责拆分为独立模块：
+
+```text
+app/src/main/java/com/custom/breenocallvoice/
+├── BreenoApp.kt                           # 注册 XposedServiceHelper
+├── config/
+│   ├── ModuleConfig.kt                    # 配置键、默认值、策略与主题枚举
+│   ├── ModulePrefsReader.kt               # Hook 侧只读 RemotePreferences 封装
+│   └── XposedServiceManager.kt            # UI 侧 libxposed-service 状态管理与读写
+├── hook/
+│   ├── HookEntry.kt                       # 极简 XposedModule 入口：进程过滤、detach()、分发子模块
+│   ├── core/
+│   │   ├── FeatureHook.kt                 # 独立 Hook 子模块接口契约
+│   │   ├── HookContext.kt                 # 统一 Protective Hook / Origin Invoker / 日志上下文
+│   │   └── ReflectExt.kt                  # 反射工具集
+│   ├── bridge/
+│   │   ├── BreenoConstants.kt             # 目标类名、MMKV 键、IPC 指令常量
+│   │   ├── BreenoBridgeClient.kt          # 跨进程 MMKV 与 IAiCallBridge 客户端封装
+│   │   └── TimbreStore.kt                 # 线程安全自定义音色注册表与 JSON 解析
+│   ├── timbre/
+│   │   ├── MainTimbreSyncHook.kt          # 主进程缓存同步与云端刷新
+│   │   ├── AiCallToneInjectHook.kt        # :aiCall 音色列表注入与 UI 刷新
+│   │   ├── AiCallTtsEngineHook.kt         # TTS 参数注入与 biz_source 回退
+│   │   └── AiCallOfflineFallbackHook.kt   # 离线播报安全回退
+│   └── update/
+│       └── BlockUpdateHook.kt             # 应用内自更新拦截（UpgradeSDK / 弹窗 / 通知）
+└── ui/
+    ├── MainActivity.kt                    # Edge-to-Edge Compose Activity
+    ├── theme/AppTheme.kt                  # Miuix ThemeController 主题封装
+    └── screen/
+        ├── HomeScreen.kt                  # Miuix 主设置页与对话框
+        └── components/StatusCard.kt       # 激活状态与一键请求作用域卡片
+```
+
+## 构建与安装
+
+- **GitHub Actions 自动构建**：推送到 `main` 分支或手动触发 `Build LSPosed Module APK` workflow，下载产物 `BreenoCallCustomVoice-release-apk` 即可安装。
+- **使用方式**：
+  1. 安装 APK，在 LSPosed 管理器中启用模块并勾选「小布助手」（或在模块 Miuix 界面中点击「一键请求小布助手作用域」）。
+  2. 强行停止「小布助手」后重新打开，确认自定义音色已录制并缓存。
+  3. 进入「小布通话 → 音色设置」选用你的自定义音色。
