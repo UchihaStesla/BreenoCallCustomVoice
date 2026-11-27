@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">小布通话自定义音色</string>
+    <string name="xposed_description">使小布通话支持使用小布助手中的自定义音色（适配小布助手 12.9.6）</string>
+</resources>
