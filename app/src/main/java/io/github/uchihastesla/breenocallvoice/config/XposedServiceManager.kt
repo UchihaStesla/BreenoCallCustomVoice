@@ -119,6 +119,7 @@ object XposedServiceManager {
                 .putBoolean(ModuleConfig.KEY_ENABLE_AUTO_CLOUD_REFRESH, updated.enableAutoCloudRefresh)
                 .putBoolean(ModuleConfig.KEY_ENABLE_OFFLINE_FALLBACK, updated.enableOfflineFallback)
                 .putInt(ModuleConfig.KEY_BIZ_SOURCE_MODE, updated.bizSourceMode.value)
+                .putInt(ModuleConfig.KEY_TTS_SPEED, ModuleConfig.clampTtsSpeed(updated.ttsSpeed))
                 .putBoolean(ModuleConfig.KEY_BLOCK_APP_UPDATE, updated.blockAppUpdate)
                 .putBoolean(ModuleConfig.KEY_VERBOSE_LOG, updated.verboseLog)
                 .apply()
@@ -226,6 +227,12 @@ object XposedServiceManager {
             prefs.getInt(
                 ModuleConfig.KEY_BIZ_SOURCE_MODE,
                 ModuleConfig.DEFAULT_BIZ_SOURCE_MODE.value,
+            ),
+        ),
+        ttsSpeed = ModuleConfig.clampTtsSpeed(
+            prefs.getInt(
+                ModuleConfig.KEY_TTS_SPEED,
+                ModuleConfig.DEFAULT_TTS_SPEED,
             ),
         ),
         blockAppUpdate = prefs.getBoolean(

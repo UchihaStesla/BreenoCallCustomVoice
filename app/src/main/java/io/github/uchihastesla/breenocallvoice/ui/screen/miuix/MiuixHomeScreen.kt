@@ -1,6 +1,7 @@
 package io.github.uchihastesla.breenocallvoice.ui.screen.miuix
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -10,16 +11,22 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import io.github.uchihastesla.breenocallvoice.config.BizSourceMode
+import io.github.uchihastesla.breenocallvoice.config.ModuleConfig
 import io.github.uchihastesla.breenocallvoice.config.ModuleSettings
 import io.github.uchihastesla.breenocallvoice.config.ServiceUiState
 import io.github.uchihastesla.breenocallvoice.config.ThemeMode
@@ -35,9 +42,11 @@ import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.MiuixScrollBehavior
 import top.yukonga.miuix.kmp.basic.Scaffold
+import top.yukonga.miuix.kmp.basic.Slider
 import top.yukonga.miuix.kmp.basic.SmallTitle
 import top.yukonga.miuix.kmp.basic.SnackbarHost
 import top.yukonga.miuix.kmp.basic.SnackbarHostState
+import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.basic.TopAppBar
 import top.yukonga.miuix.kmp.basic.rememberTopAppBarState
@@ -65,6 +74,10 @@ fun MiuixHomeScreen(uiState: ServiceUiState) {
     val breenoVersionText = remember(context) { HomeScreenSupport.queryTargetVersion(context) }
     val canEditRemote = uiState.isActivated && uiState.supportsRemotePrefs
     val settings = uiState.settings
+    var sliderSpeed by remember { mutableFloatStateOf(settings.ttsSpeed.toFloat()) }
+    LaunchedEffect(settings.ttsSpeed) {
+        sliderSpeed = settings.ttsSpeed.toFloat()
+    }
 
     fun showTip(msg: String) {
         scope.launch {
@@ -196,6 +209,88 @@ fun MiuixHomeScreen(uiState: ServiceUiState) {
                             editRemote { it.copy(bizSourceMode = chosen) }
                         },
                     )
+                }
+            }
+
+            item(key = "speed_section") {
+                val displaySpeed = ModuleConfig.snapTtsSpeed(sliderSpeed)
+                SmallTitle(text = "通话语速")
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp),
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 14.dp)
+                            .alpha(if (canEditRemote) 1f else 0.48f),
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = "语音速度",
+                                style = MiuixTheme.textStyles.headline1,
+                                color = MiuixTheme.colorScheme.onSurface,
+                            )
+                            Text(
+                                text = ModuleConfig.formatTtsSpeedLabel(displaySpeed),
+                                style = MiuixTheme.textStyles.body2,
+                                fontWeight = FontWeight.Medium,
+                                color = MiuixTheme.colorScheme.primary,
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "调节小布通话云端播报语速（内置音色与自定义音色均生效；50 为小布默认标准语速，与小布助手 10~100 档位一致）",
+                            style = MiuixTheme.textStyles.body2,
+                            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Slider(
+                            value = sliderSpeed,
+                            onValueChange = { raw ->
+                                sliderSpeed = ModuleConfig.snapTtsSpeed(raw).toFloat()
+                            },
+                            valueRange = ModuleConfig.MIN_TTS_SPEED.toFloat()..ModuleConfig.MAX_TTS_SPEED.toFloat(),
+                            enabled = canEditRemote,
+                            onValueChangeFinished = {
+                                val snapped = ModuleConfig.snapTtsSpeed(sliderSpeed)
+                                if (snapped != settings.ttsSpeed) {
+                                    editRemote { it.copy(ttsSpeed = snapped) }
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                        ) {
+                            listOf("10 较慢", "25 慢", "50 标准", "75 快", "100 较快").forEach { tick ->
+                                Text(
+                                    text = tick,
+                                    style = MiuixTheme.textStyles.footnote1,
+                                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                                )
+                            }
+                        }
+                        if (settings.ttsSpeed != ModuleConfig.DEFAULT_TTS_SPEED) {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            TextButton(
+                                text = "恢复默认语速 (50 · 标准)",
+                                onClick = {
+                                    sliderSpeed = ModuleConfig.DEFAULT_TTS_SPEED.toFloat()
+                                    editRemote { it.copy(ttsSpeed = ModuleConfig.DEFAULT_TTS_SPEED) }
+                                },
+                                enabled = canEditRemote,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
+                    }
                 }
             }
 

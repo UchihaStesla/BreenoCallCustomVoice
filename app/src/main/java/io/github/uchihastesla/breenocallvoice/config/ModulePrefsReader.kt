@@ -46,6 +46,14 @@ class ModulePrefsReader(private val xposed: XposedInterface) {
             ) ?: ModuleConfig.DEFAULT_BIZ_SOURCE_MODE.value,
         )
 
+    val ttsSpeed: Int
+        get() = ModuleConfig.clampTtsSpeed(
+            prefs()?.getInt(
+                ModuleConfig.KEY_TTS_SPEED,
+                ModuleConfig.DEFAULT_TTS_SPEED,
+            ) ?: ModuleConfig.DEFAULT_TTS_SPEED,
+        )
+
     val isBlockAppUpdateEnabled: Boolean
         get() = prefs()?.getBoolean(
             ModuleConfig.KEY_BLOCK_APP_UPDATE,

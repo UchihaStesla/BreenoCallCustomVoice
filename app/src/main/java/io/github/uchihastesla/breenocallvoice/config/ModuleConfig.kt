@@ -19,12 +19,19 @@ object ModuleConfig {
     const val KEY_ENABLE_AUTO_CLOUD_REFRESH = "enable_auto_cloud_refresh"
     const val KEY_ENABLE_OFFLINE_FALLBACK = "enable_offline_fallback"
     const val KEY_BIZ_SOURCE_MODE = "biz_source_mode"
+    const val KEY_TTS_SPEED = "tts_speed"
     const val KEY_BLOCK_APP_UPDATE = "block_app_update"
     const val KEY_VERBOSE_LOG = "verbose_log"
 
     // Local UI-only preference keys
     const val KEY_THEME_MODE = "ui_theme_mode"
     const val KEY_UI_STYLE = "ui_style"
+
+    // TTS speed range (matches Breeno Assistant HeytapTtsEngine 0-100 scale; d2 presets: 10/25/50/75/100)
+    const val MIN_TTS_SPEED = 10
+    const val MAX_TTS_SPEED = 100
+    const val STEP_TTS_SPEED = 5
+    const val DEFAULT_TTS_SPEED = 50
 
     // Defaults
     const val DEFAULT_ENABLE_CUSTOM_TIMBRE = true
@@ -35,6 +42,27 @@ object ModuleConfig {
     val DEFAULT_BIZ_SOURCE_MODE = BizSourceMode.AUTO
     val DEFAULT_THEME_MODE = ThemeMode.SYSTEM
     val DEFAULT_UI_STYLE = UiStyle.MIUIX
+
+    fun clampTtsSpeed(value: Int): Int = value.coerceIn(MIN_TTS_SPEED, MAX_TTS_SPEED)
+
+    fun snapTtsSpeed(value: Float): Int {
+        val snapped = Math.round(value / STEP_TTS_SPEED) * STEP_TTS_SPEED
+        return clampTtsSpeed(snapped)
+    }
+
+    fun formatTtsSpeedLabel(speed: Int): String {
+        val clamped = clampTtsSpeed(speed)
+        val tier = when {
+            clamped == DEFAULT_TTS_SPEED -> "标准（默认）"
+            clamped <= 15 -> "较慢"
+            clamped <= 35 -> "慢"
+            clamped < DEFAULT_TTS_SPEED -> "偏慢"
+            clamped <= 65 -> "偏快"
+            clamped <= 85 -> "快"
+            else -> "较快"
+        }
+        return "$clamped · $tier"
+    }
 }
 
 enum class BizSourceMode(val value: Int, val label: String, val description: String) {
@@ -95,6 +123,7 @@ data class ModuleSettings(
     val enableAutoCloudRefresh: Boolean = ModuleConfig.DEFAULT_ENABLE_AUTO_CLOUD_REFRESH,
     val enableOfflineFallback: Boolean = ModuleConfig.DEFAULT_ENABLE_OFFLINE_FALLBACK,
     val bizSourceMode: BizSourceMode = ModuleConfig.DEFAULT_BIZ_SOURCE_MODE,
+    val ttsSpeed: Int = ModuleConfig.DEFAULT_TTS_SPEED,
     val blockAppUpdate: Boolean = ModuleConfig.DEFAULT_BLOCK_APP_UPDATE,
     val verboseLog: Boolean = ModuleConfig.DEFAULT_VERBOSE_LOG,
 )

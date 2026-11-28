@@ -34,6 +34,7 @@ import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
@@ -41,7 +42,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -54,6 +57,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import io.github.uchihastesla.breenocallvoice.config.BizSourceMode
+import io.github.uchihastesla.breenocallvoice.config.ModuleConfig
 import io.github.uchihastesla.breenocallvoice.config.ModuleSettings
 import io.github.uchihastesla.breenocallvoice.config.ServiceUiState
 import io.github.uchihastesla.breenocallvoice.config.ThemeMode
@@ -80,6 +84,10 @@ fun Material3HomeScreen(uiState: ServiceUiState) {
     val breenoVersionText = remember(context) { HomeScreenSupport.queryTargetVersion(context) }
     val canEditRemote = uiState.isActivated && uiState.supportsRemotePrefs
     val settings = uiState.settings
+    var sliderSpeed by remember { mutableFloatStateOf(settings.ttsSpeed.toFloat()) }
+    LaunchedEffect(settings.ttsSpeed) {
+        sliderSpeed = settings.ttsSpeed.toFloat()
+    }
 
     fun showTip(msg: String) {
         scope.launch {
@@ -195,6 +203,85 @@ fun Material3HomeScreen(uiState: ServiceUiState) {
                         enabled = canEditRemote && settings.enableCustomTimbre,
                         onClick = { showBizModeDialog = true },
                     )
+                }
+            }
+
+            item(key = "speed_section") {
+                val displaySpeed = ModuleConfig.snapTtsSpeed(sliderSpeed)
+                val sliderSteps = ((ModuleConfig.MAX_TTS_SPEED - ModuleConfig.MIN_TTS_SPEED) / ModuleConfig.STEP_TTS_SPEED) - 1
+                Md3Section(title = "通话语速") {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 18.dp, vertical = 14.dp)
+                            .alpha(if (canEditRemote) 1f else 0.48f),
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = "语音速度",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                            Text(
+                                text = ModuleConfig.formatTtsSpeedLabel(displaySpeed),
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "调节小布通话云端播报语速（内置音色与自定义音色均生效；50 为小布默认标准语速，与小布助手 10~100 档位一致）",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Slider(
+                            value = sliderSpeed,
+                            onValueChange = { raw ->
+                                sliderSpeed = ModuleConfig.snapTtsSpeed(raw).toFloat()
+                            },
+                            valueRange = ModuleConfig.MIN_TTS_SPEED.toFloat()..ModuleConfig.MAX_TTS_SPEED.toFloat(),
+                            steps = sliderSteps,
+                            enabled = canEditRemote,
+                            onValueChangeFinished = {
+                                val snapped = ModuleConfig.snapTtsSpeed(sliderSpeed)
+                                if (snapped != settings.ttsSpeed) {
+                                    editRemote { it.copy(ttsSpeed = snapped) }
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                        ) {
+                            listOf("10 较慢", "25 慢", "50 标准", "75 快", "100 较快").forEach { tick ->
+                                Text(
+                                    text = tick,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                        if (settings.ttsSpeed != ModuleConfig.DEFAULT_TTS_SPEED) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            FilledTonalButton(
+                                onClick = {
+                                    sliderSpeed = ModuleConfig.DEFAULT_TTS_SPEED.toFloat()
+                                    editRemote { it.copy(ttsSpeed = ModuleConfig.DEFAULT_TTS_SPEED) }
+                                },
+                                enabled = canEditRemote,
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Text("恢复默认语速 (50 · 标准)")
+                            }
+                        }
+                    }
                 }
             }
 

@@ -11,6 +11,9 @@
   - `:aiCall` 进程合并已生成（`status == 3`）的自定义音色到 `AiCallTimbreConfigBean.getToneList()`，并自动刷新小布通话音色设置页。
   - `HeytapTtsEngine.startSpeaking` 自动注入 `ttsType=USER_TIMBRE`、`userToken`、`heytapAccountDeviceId` 与 `clientContext`，内置 `biz_source` 策略（自动探测回退 / 强制清空 / 保持原样）。
   - 离线播报缺少自定义模型时自动回退至默认离线音色（`xiaoou_female`），避免无声或崩溃。
+- **小布通话语音速度调节**：
+  - 与小布助手一致的 `10 ~ 100` 语速刻度（默认 `50` 标准语速，步进 `5`，对应 `10 较慢 / 25 慢 / 50 标准 / 75 快 / 100 较快`）。
+  - 在 `HeytapTtsEngine.startSpeaking` 及 `biz_source` 自动回退重试路径中一并注入 `speed` 参数，对内置音色与自定义音色云端播报均生效。
 - **阻止小布助手应用内更新**：
   - 拦截 `UpgradeSDK` 的 `checkUpgrade`（模拟返回 `FLAG_NO_UPGRADE`，手动检查时显示「已是最新版本」）、`startDownload`、`install`、`hasDownloadComplete`。
   - 拦截 `UpgradeInfo.isUpgradeAvailable()`、`UpgradeActivity` 弹窗命令以及更新通知推送。

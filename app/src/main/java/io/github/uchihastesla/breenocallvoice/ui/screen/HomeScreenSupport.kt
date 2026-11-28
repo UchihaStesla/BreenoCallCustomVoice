@@ -24,12 +24,12 @@ internal object HomeScreenSupport {
         "• MainTimbreSyncHook：主进程缓存镜像与 Binder IPC 扩展\n" +
         "• LauncherAllowHook：放行模块拉起小布助手并支持直达小布通话设置\n" +
         "• AiCallToneInjectHook：:aiCall 音色列表合并与界面刷新\n" +
-        "• AiCallTtsEngineHook：TTS 参数注入与 biz_source 自动回退\n" +
+        "• AiCallTtsEngineHook：TTS 参数/语速注入与 biz_source 自动回退\n" +
         "• AiCallOfflineFallbackHook：离线播报安全回退\n" +
         "• BlockUpdateHook：拦截 UpgradeSDK 与更新弹窗/通知"
 
     const val RESET_TITLE = "恢复默认配置"
-    const val RESET_SUMMARY = "确定要将所有功能开关与 TTS 策略重置为推荐默认值吗？修改将通过 libxposed RemotePreferences 实时同步。"
+    const val RESET_SUMMARY = "确定要将所有功能开关、通话语速与 TTS 策略重置为推荐默认值吗？修改将通过 libxposed RemotePreferences 实时同步。"
 
     const val HIDE_ICON_WARN_TITLE = "确认隐藏桌面图标"
     const val HIDE_ICON_WARN_SUMMARY = "当前未检测到模块处于激活状态。隐藏桌面图标后，只能通过 LSPosed 管理器重新打开本界面，确定继续吗？"

@@ -1,6 +1,7 @@
 package io.github.uchihastesla.breenocallvoice.hook.timbre
 
 import io.github.uchihastesla.breenocallvoice.config.BizSourceMode
+import io.github.uchihastesla.breenocallvoice.config.ModuleConfig
 import io.github.uchihastesla.breenocallvoice.hook.bridge.BreenoConstants
 import io.github.uchihastesla.breenocallvoice.hook.bridge.TimbreStore
 import io.github.uchihastesla.breenocallvoice.hook.core.FeatureHook
@@ -41,11 +42,29 @@ class AiCallTtsEngineHook : FeatureHook {
         val originStartSpeaking = ctx.originInvoker(startSpeakingMethod)
 
         ctx.hookProtective(startSpeakingMethod) { chain ->
-            if (!ctx.prefs.isCustomTimbreEnabled) return@hookProtective chain.proceed()
-
             val engine = chain.thisObject ?: return@hookProtective chain.proceed()
             val text = chain.getArg(0) as? String
             val origListener = chain.getArg(1)
+
+            val configuredSpeed = ctx.prefs.ttsSpeed
+            val speedOverride = if (configuredSpeed != ModuleConfig.DEFAULT_TTS_SPEED) {
+                configuredSpeed.toString()
+            } else {
+                null
+            }
+
+            // Apply configured speed for ALL cloud TTS utterances (both built-in and custom timbres),
+            // even when custom timbre injection is disabled.
+            if (speedOverride != null) {
+                setParameterMethod.invoke(engine, "speed", speedOverride)
+            }
+
+            if (!ctx.prefs.isCustomTimbreEnabled) {
+                if (speedOverride != null) {
+                    ctx.logD("startSpeaking speed=$speedOverride (custom timbre disabled)")
+                }
+                return@hookProtective chain.proceed()
+            }
 
             val sdkParams = getSdkParamsMethod.invoke(engine)
             val roleName = getSdkParam(sdkParams, "role_name")
@@ -53,20 +72,24 @@ class AiCallTtsEngineHook : FeatureHook {
             if (!TimbreStore.isCustomTimbre(roleName)) {
                 // HeytapTtsEngine.clearDynamicParams() does not clear ttsType; reset explicitly
                 setParameterMethod.invoke(engine, "ttsType", "")
+                if (speedOverride != null) {
+                    ctx.logI("startSpeaking built-in timbre=$roleName speed=$speedOverride")
+                }
                 return@hookProtective chain.proceed()
             }
 
             val (userToken, deviceId) = ctx.bridge.fetchAuth()
             applyCustomTtsParams(engine, sdkParams, setParameterMethod, userToken, deviceId)
+            val speedLogSuffix = speedOverride?.let { " speed=$it" }.orEmpty()
 
             when (ctx.prefs.bizSourceMode) {
                 BizSourceMode.KEEP_ORIGINAL -> {
-                    ctx.logI("startSpeaking custom timbre=$roleName (keep biz_source)")
+                    ctx.logI("startSpeaking custom timbre=$roleName$speedLogSuffix (keep biz_source)")
                     chain.proceed()
                 }
                 BizSourceMode.FORCE_STRIP -> {
                     setParameterMethod.invoke(engine, "biz_source", "")
-                    ctx.logI("startSpeaking custom timbre=$roleName (force stripped biz_source)")
+                    ctx.logI("startSpeaking custom timbre=$roleName$speedLogSuffix (force stripped biz_source)")
                     chain.proceed()
                 }
                 BizSourceMode.AUTO -> {
@@ -76,7 +99,7 @@ class AiCallTtsEngineHook : FeatureHook {
                     )
                     if (learnedStrip) {
                         setParameterMethod.invoke(engine, "biz_source", "")
-                        ctx.logI("startSpeaking custom timbre=$roleName (biz_source stripped)")
+                        ctx.logI("startSpeaking custom timbre=$roleName$speedLogSuffix (biz_source stripped)")
                         return@hookProtective chain.proceed()
                     }
                     val snapshot = snapshotSdkParams(sdkParams)
@@ -89,11 +112,12 @@ class AiCallTtsEngineHook : FeatureHook {
                         roleName = roleName!!,
                         userToken = userToken,
                         deviceId = deviceId,
+                        speedOverride = speedOverride,
                         snapshot = snapshot,
                         setParameterMethod = setParameterMethod,
                         originStartSpeaking = originStartSpeaking,
                     )
-                    ctx.logI("startSpeaking custom timbre=$roleName (auto biz_source fallback)")
+                    ctx.logI("startSpeaking custom timbre=$roleName$speedLogSuffix (auto biz_source fallback)")
                     chain.proceed(arrayOf(text, wrappedListener))
                 }
             }
@@ -130,6 +154,7 @@ class AiCallTtsEngineHook : FeatureHook {
         roleName: String,
         userToken: String,
         deviceId: String,
+        speedOverride: String?,
         snapshot: Map<String, String>,
         setParameterMethod: Method,
         originStartSpeaking: XposedInterface.Invoker<*, Method>,
@@ -166,6 +191,7 @@ class AiCallTtsEngineHook : FeatureHook {
                                 setParameterMethod.invoke(engine, "ttsType", "USER_TIMBRE")
                                 if (userToken.isNotEmpty()) setParameterMethod.invoke(engine, "userToken", userToken)
                                 if (deviceId.isNotEmpty()) setParameterMethod.invoke(engine, "heytapAccountDeviceId", deviceId)
+                                if (speedOverride != null) setParameterMethod.invoke(engine, "speed", speedOverride)
                                 setParameterMethod.invoke(engine, "biz_source", "")
                                 originStartSpeaking.invoke(engine, text, origListener)
                             }.onFailure { retryErr ->
